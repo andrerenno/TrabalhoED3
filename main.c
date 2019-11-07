@@ -1172,7 +1172,7 @@ int main(int argc, char** argv) {
             registros = lerTodosOsRegistros(nomeDados);
             REGISTRO_PADRAO* aux = (REGISTRO_PADRAO*) calloc(NUM_REG_MAX, sizeof (REGISTRO_PADRAO));
             for(int i = 0, j = 0; i < NUM_REG_MAX; i++){
-                if(registros[i].cidadeOrigem[0]!= '*'){
+                if(registros[i].estadoOrigem[0]!= '*'){
                     aux[j++] = registros[i];
                 }
             }
@@ -1184,7 +1184,7 @@ int main(int argc, char** argv) {
             }
             lerCabecalho(cabecalho, descritor);
             char cur_date[11];
-            sprintf(cur_date, "%d/%d/%d",tm.tm_mday, tm.tm_mon, tm.tm_year);
+            sprintf(cur_date, "%02d/%d/%d",tm.tm_mday, tm.tm_mon, tm.tm_year+1900);
             strcpy(cabecalho->dataUltimaCompactacao, cur_date);
             //escreve o cabecalho no arquivo de dados:
             strcpy(modoAbertura, "wb");
