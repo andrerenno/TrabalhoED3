@@ -1,4 +1,5 @@
-
+// Lucas Gabriel Mendes Miranda - 10265892
+// André Rennó de Campos        - 10298864
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -524,6 +525,7 @@ REGISTRO_PADRAO* lerRegistro(FILE* descritor) {
 
     REGISTRO_PADRAO* registroLido;
     char* campoLido;
+    int start_pos = ftell(descritor);
 
     registroLido = (REGISTRO_PADRAO*) calloc(1, sizeof (REGISTRO_PADRAO));
     if (registroLido == NULL) {
@@ -550,6 +552,7 @@ REGISTRO_PADRAO* lerRegistro(FILE* descritor) {
     campoLido = lerCampoVariavel(descritor);
     strcpy(registroLido->tempoViagem, campoLido);
     free(campoLido);
+    fseek(descritor, start_pos + TAM_REG_PAD, SEEK_SET);
 
     return registroLido;
 }
@@ -590,6 +593,7 @@ REGISTRO_PADRAO* lerTodosOsRegistros(char* nomeDados) {
         fseek(descritor, TAM_REG_CAB + TAM_REG_PAD * (i + 1), SEEK_SET);
         aux = lerRegistro(descritor);
     }
+    registros[0].numReg = i;
     if(aux != NULL){
         free(aux);
     }
@@ -958,11 +962,15 @@ int main(int argc, char** argv) {
     char nomeOut[25]; //armazena o nome de um possivel arquivo de dados
     char nomeCampo[15]; //armazena o nome de um dos campos de um registro
     char valorCampo[25]; //armazena um possível valor de um campo
+    char* tempCidadeOrigem; //armazena um possível valor de um campo
+    char* tempCidadeDest; //armazena um possível valor de um campo
+    char* tempTempo; //armazena um possível valor de um campo
     char modoAbertura[5]; //define o modo de abertura para escrever o cabeçalho
-    int RRN;
+    int RRN = 0;
     int i;
     int nVezes; //número de vezes que uma funcionalidade deve ser executada
     REGISTRO_PADRAO* registros; //vetor que vai armazenar o conjunto de registros padrão do arquivo de dados
+    REGISTRO_PADRAO* aux;
     VERTICE* verticesOrdenados;
     REGISTRO_CABECALHO* cabecalho;
     FILE* descritor; //descritor do arquivo de texto quando for preciso
@@ -975,6 +983,7 @@ int main(int argc, char** argv) {
     //preenche strings com '\0':
     limparString(nomeCsv, 25);
     limparString(nomeDados, 25);
+    limparString(nomeOut, 25);
     limparString(nomeCampo, 15);
     limparString(valorCampo, 25);
     limparString(modoAbertura, 5);
@@ -984,231 +993,371 @@ int main(int argc, char** argv) {
 
     //sabemos que entrada_inicial[0] guarda a opção de funcionalidade, por isso, fazemos um switch nesse caractere:
     switch (funcionalidade) {
-        case 1:
-            //obtém os nomes dos arquivos .csv e de dados da entrada inicial do usuário:
-            scanf("%s", nomeCsv);
-            scanf("%s", nomeDados);
 
-            //lê o arquivo .csv:
-            registros = lerCsvPadrao(nomeCsv);
-            if (registros == NULL) {
-                return 0; //código de erro
-            }
+        case 1: // Funcionalidade 1: Converte um arquivo CSV em um arquivo binário
+            {
+                //obtém os nomes dos arquivos .csv e de dados da entrada inicial do usuário:
+                scanf("%s", nomeCsv);
+                scanf("%s", nomeDados);
 
-            //gera arquivo auxiliar (para contabilizar o número de vértices):
-            verticesOrdenados = geraArquivoAuxiliar(registros);
-            if (verticesOrdenados == NULL) {
-                free(registros);
-                return 0;
-            }
+                //lê o arquivo .csv:
+                registros = lerCsvPadrao(nomeCsv);
+                if (registros == NULL) {
+                    return 0; //código de erro
+                }
 
-            //gera o cabecalho:
-            cabecalho = geraCabecalho(verticesOrdenados, registros[0].numReg);
-            if (cabecalho == NULL) {
-                free(registros);
-                free(verticesOrdenados);
-                return 0;
-            }
+                //gera arquivo auxiliar (para contabilizar o número de vértices):
+                verticesOrdenados = geraArquivoAuxiliar(registros);
+                if (verticesOrdenados == NULL) {
+                    free(registros);
+                    return 0;
+                }
 
-            //escreve o cabecalho no arquivo de dados:
-            strcpy(modoAbertura, "wb");
-            flag = escreveCabecalho(cabecalho, nomeDados, modoAbertura);
-            if (flag == -1) {
-                free(registros);
-                free(verticesOrdenados);
-                free(cabecalho);
-                return 0;
-            }
+                //gera o cabecalho:
+                cabecalho = geraCabecalho(verticesOrdenados, registros[0].numReg);
+                if (cabecalho == NULL) {
+                    free(registros);
+                    free(verticesOrdenados);
+                    return 0;
+                }
 
-            //escreve o restante do arquivo:
-            flag = escreveRegistrosPadrao(registros, nomeDados);
-            if (flag == -1) {
-                free(registros);
-                free(verticesOrdenados);
-                free(cabecalho);
-                return 0;
-            }
-
-            //função do matheus:
-            binarioNaTela1(nomeDados);
-
-            free(registros);
-            free(verticesOrdenados);
-            free(cabecalho);
-
-            break;
-
-        case 2:
-            //recolhe a entrada do usuário e executa a funcionalidade:
-            scanf("%s", nomeDados);
-            flag = recuperaTodosOsRegistros(nomeDados);
-            if (flag == -1) {
-                return 0;
-            }
-
-            break;
-
-        case 3:
-            //obtém os parâmetros:
-            scanf("%s", nomeDados);
-            scanf("%s", nomeCampo);
-            scan_quote_string(valorCampo);
-
-            //executa a função responsável pela funcionalidade:
-            flag = comparaTodosOsRegistros(nomeDados, nomeCampo, valorCampo, 1);
-            if (flag == -1) {
-                return 0;
-            }
-            if (flag == 0) { //se o número de comparações certas for zero, o registro não existe ou foi removido
-                printf("Registro inexistente.\n");
-            }
-
-            break;
-
-        case 4:
-            //obtém os parâmetros:
-            scanf("%s", nomeDados);
-            scanf("%d", &RRN);
-
-            //abre o arquivo de dados:
-            descritor = fopen(nomeDados, "rb");
-            if (descritor == NULL) {
-                printf("Falha no processamento do arquivo.\n");
-                return 0;
-            }
-
-            //le o cabecalho do arquivo de dados:
-            cabecalho = (REGISTRO_CABECALHO*) calloc(1, sizeof (REGISTRO_CABECALHO));
-            if (cabecalho == NULL) {
-                printf("Falha no processamento do arquivo.\n");
-                fclose(descritor);
-                return 0;
-            }
-            lerCabecalho(cabecalho, descritor);
-            if (cabecalho->status == '1') { //consistente
-                if (RRN >= cabecalho->numeroArestas) { //checa se o RRN digitado está dentro dos limites
-                    printf("Registro inexistente.\n");
+                //escreve o cabecalho no arquivo de dados:
+                strcpy(modoAbertura, "wb");
+                flag = escreveCabecalho(cabecalho, nomeDados, modoAbertura);
+                if (flag == -1) {
+                    free(registros);
+                    free(verticesOrdenados);
                     free(cabecalho);
-                    fclose(descritor);
-                    break;
+                    return 0;
                 }
-            } else {
-                printf("Falha no processamento do arquivo.\n");
+
+                //escreve o restante do arquivo:
+                flag = escreveRegistrosPadrao(registros, nomeDados);
+                if (flag == -1) {
+                    free(registros);
+                    free(verticesOrdenados);
+                    free(cabecalho);
+                    return 0;
+                }
+
+                //função do matheus:
+                binarioNaTela1(nomeDados);
+
+                free(registros);
+                free(verticesOrdenados);
+                free(cabecalho);
+
+                break;
             }
 
-            //executa a funcionalidade:
-            recuperaRegistro(RRN, descritor, 2);
-            fclose(descritor);
-            free(cabecalho);
-
-            break;
-
-        case 5:
-            //obtém os parâmetros:
-            scanf("%s", nomeDados);
-            scanf("%d", &nVezes);
-
-            for (i = 0; i < nVezes; i++) {
-                scanf("%s", nomeCampo);
-                scan_quote_string(valorCampo);
-                if(strcmp(valorCampo, "NULO") == 0){
-                    limparString(valorCampo, 25);
-                }
-
-                flag = comparaTodosOsRegistros(nomeDados, nomeCampo, valorCampo, 2);
+        case 2: // Funcionalidade 2: Mostra todos os registros na tela. 
+            {
+                //recolhe a entrada do usuário e executa a funcionalidade:
+                scanf("%s", nomeDados);
+                flag = recuperaTodosOsRegistros(nomeDados);
                 if (flag == -1) {
                     return 0;
                 }
+
+                break;
             }
 
-            binarioNaTela1(nomeDados);
-
-            break;
-
-        case 6: //funcionalidade 6
-
-            break;
-
-        case 7: //funcionalidade 7
-            //obtém os parâmetros:
-            scanf("%s", nomeDados);
-            scanf("%d", &nVezes);
-            descritor = fopen(nomeDados, "rb+");
-            if (descritor == NULL) {
-                printf("Falha no processamento do arquivo.\n");
-                return -1;
-            }
-            for (i = 0; i < nVezes; i++) {
-                scanf("%d", &RRN);
+        case 3: // Funcionalidade 3: Mostra na tela os registros que satisfazem um critério de busca.  
+            {
+                //obtém os parâmetros:
+                scanf("%s", nomeDados);
                 scanf("%s", nomeCampo);
                 scan_quote_string(valorCampo);
-                fseek(descritor, RRN * TAM_REG_PAD + TAM_REG_CAB, SEEK_SET);
-                if (!strcmp(nomeCampo, "estadoOrigem")){
-                    if(strcmp(valorCampo, "NULO") == 0){
-                        fputc('\0', descritor);
-                        fputc('#', descritor);
+
+                //executa a função responsável pela funcionalidade:
+                flag = comparaTodosOsRegistros(nomeDados, nomeCampo, valorCampo, 1);
+                if (flag == -1) {
+                    return 0;
+                }
+                if (flag == 0) { //se o número de comparações certas for zero, o registro não existe ou foi removido
+                    printf("Registro inexistente.\n");
+                }
+
+                break;
+            }
+
+
+        case 4: // Funcionalidade 4: Busca o registro em um RRN e o exibe na tela.
+            {
+                //obtém os parâmetros:
+                scanf("%s", nomeDados);
+                scanf("%d", &RRN);
+
+                //abre o arquivo de dadosf
+                descritor = fopen(nomeDados, "rb");
+                if (descritor == NULL) {
+                    printf("Falha no processamento do arquivo.\n");
+                    return 0;
+                }
+
+                //le o cabecalho do arquivo de dados:
+                cabecalho = (REGISTRO_CABECALHO*) calloc(1, sizeof (REGISTRO_CABECALHO));
+                if (cabecalho == NULL) {
+                    printf("Falha no processamento do arquivo.\n");
+                    fclose(descritor);
+                    return 0;
+                }
+                lerCabecalho(cabecalho, descritor);
+                if (cabecalho->status == '1') { //consistente
+                    if (RRN >= cabecalho->numeroArestas) { //checa se o RRN digitado está dentro dos limites
+                        printf("Registro inexistente.\n");
+                        free(cabecalho);
+                        fclose(descritor);
+                        break;
                     }
-                    fputs(valorCampo, descritor);
+                } else {
+                    printf("Falha no processamento do arquivo.\n");
                 }
-                if (!strcmp(nomeCampo, "estadoDestino")){
-                    fseek(descritor, 2, SEEK_CUR);
-                    fputs(valorCampo, descritor);
+
+                //executa a funcionalidade:
+                recuperaRegistro(RRN, descritor, 2);
+                fclose(descritor);
+                free(cabecalho);
+
+                break;
+            }
+
+
+        case 5: // Funcionalidade 5: Remove registros que satisfazem um critério de busca.
+            {
+                //obtém os parâmetros:
+                scanf("%s", nomeDados);
+                scanf("%d", &nVezes);
+
+                for (i = 0; i < nVezes; i++) {
+                    scanf("%s", nomeCampo);
+                    scan_quote_string(valorCampo);
+                    if(strcmp(valorCampo, "NULO") == 0){
+                        limparString(valorCampo, 25);
+                    }
+
+                    flag = comparaTodosOsRegistros(nomeDados, nomeCampo, valorCampo, 2);
+                    if (flag == -1) {
+                        return 0;
+                    }
                 }
-                if (!strcmp(nomeCampo, "distancia")){
-                    fseek(descritor, 4, SEEK_CUR);
-                    int val = (int) strtol(valorCampo, (char **)NULL, 10);
-                    fwrite(&val, 4, 1, descritor);
+
+                binarioNaTela1(nomeDados);
+
+                break;
+            }
+
+
+        case 6: // Funcionalidade 6: Insere n registros a partir da entrada.
+            {
+                //obtém os parâmetros:
+                scanf("%s", nomeDados);
+                scanf("%d", &nVezes);
+
+                /* aux = calloc(1, sizeof(REGISTRO_PADRAO)); */
+                /* descritor = fopen(nomeDados, "rb+"); */
+                /* if (descritor == NULL) { */
+                /*     printf("Falha no processamento do arquivo.\n"); */
+                /*     return -1; */
+                /* } */
+                /* fseek(descritor, 0, SEEK_END); */
+                /* for (i = 0; i < nVezes; i++) { */
+                /*     scanf("%s", aux -> estadoOrigem); */
+                /*     scanf("%s", aux -> estadoDestino); */
+                /*     scanf("%s", valorCampo); */
+                /*     if (valorCampo[0] == 'n' || valorCampo[0] == 'N') */
+                /*         aux -> distancia = -1; */
+                /*     else aux -> distancia = atoi(valorCampo); */
+                /*     scan_quote_string(aux -> cidadeOrigem); */
+                /*     scan_quote_string(aux -> cidadeDestino); */
+                /*     scan_quote_string(aux -> tempoViagem); */
+                /*     escreveRegistroPadrao(*aux, descritor); */
+                /* } */
+                /* fclose(descritor); */
+                /* free(registros); */
+
+                registros = lerTodosOsRegistros(nomeDados);
+                for (i = 1; i <= nVezes; i++) {
+                    aux = calloc(1, sizeof(REGISTRO_PADRAO));
+                    scanf("%s", aux -> estadoOrigem);
+                    scanf("%s", aux -> estadoDestino);
+                    scanf("%s", valorCampo);
+                    if (valorCampo[0] == 'n' || valorCampo[0] == 'N')
+                        aux -> distancia = -1;
+                    else aux -> distancia = atoi(valorCampo);
+                    scan_quote_string(aux -> cidadeOrigem);
+                    scan_quote_string(aux -> cidadeDestino);
+                    scan_quote_string(aux -> tempoViagem);
+
+                    registros[registros[0].numReg++] = *aux;
+                    free(aux);
+                }
+                verticesOrdenados = geraArquivoAuxiliar(registros);
+                cabecalho = geraCabecalho(verticesOrdenados, registros[0].numReg);
+                flag = escreveCabecalho(cabecalho, nomeDados, "wb");
+                flag = escreveRegistrosPadrao(registros, nomeDados);
+                binarioNaTela1(nomeDados);
+                break;
+
+                
+            }
+
+
+        case 7: // Funcionalidade 7: Atualiza um campo específico de um registro.
+            {
+                //obtém os parâmetros:
+                scanf("%s", nomeDados);
+                scanf("%d", &nVezes);
+                descritor = fopen(nomeDados, "rb+");
+                if (descritor == NULL) {
+                    printf("Falha no processamento do arquivo.\n");
+                    return -1;
+                }
+                //le o cabecalho do arquivo de dados:
+                cabecalho = (REGISTRO_CABECALHO*) calloc(1, sizeof (REGISTRO_CABECALHO));
+                if (cabecalho == NULL) {
+                    printf("Falha no processamento do arquivo.\n");
+                    fclose(descritor);
+                    return 0;
+                }
+                lerCabecalho(cabecalho, descritor);
+
+                for (i = 0; i < nVezes; i++) {
+                    scanf("%d", &RRN);
+                    if (RRN >= cabecalho->numeroArestas) { //checa se o RRN digitado está dentro dos limites
+                        scanf("%s", nomeCampo);
+                        scan_quote_string(valorCampo);
+                        continue;
+                    }
+                    scanf("%s", nomeCampo);
+                    scan_quote_string(valorCampo);
+                    fseek(descritor, RRN * TAM_REG_PAD + TAM_REG_CAB, SEEK_SET);
+                    if (!strcmp(nomeCampo, "estadoOrigem")){
+                        if(strcmp(valorCampo, "NULO") == 0){
+                            fputc('\0', descritor);
+                            fputc('#', descritor);
+                        }
+                        fputs(valorCampo, descritor);
+                        continue;
+                    }
+                    if (!strcmp(nomeCampo, "estadoDestino")){
+                        fseek(descritor, 2, SEEK_CUR);
+                        fputs(valorCampo, descritor);
+                        continue;
+                    }
+                    if (!strcmp(nomeCampo, "distancia")){
+                        fseek(descritor, 4, SEEK_CUR);
+                        int val = (int) strtol(valorCampo, (char **)NULL, 10);
+                        fwrite(&val, 4, 1, descritor);
+                        continue;
+                    }
+
+                    fseek(descritor, 8, SEEK_CUR);
+                    tempCidadeOrigem = lerCampoVariavel(descritor);
+                    tempCidadeDest = lerCampoVariavel(descritor);
+                    tempTempo = lerCampoVariavel(descritor);
+
+                    if (!strcmp(nomeCampo, "cidadeOrigem")){
+                        fseek(descritor, RRN * TAM_REG_PAD + TAM_REG_CAB + 8, SEEK_SET);
+                        escreveCampoVariavel(descritor, valorCampo);
+                        escreveCampoVariavel(descritor, tempCidadeDest);
+                        escreveCampoVariavel(descritor, tempTempo);
+                    }
+                    if (!strcmp(nomeCampo, "cidadeDestino")){
+                        fseek(descritor, RRN * TAM_REG_PAD + TAM_REG_CAB + 8, SEEK_SET);
+                        escreveCampoVariavel(descritor, tempCidadeOrigem);
+                        escreveCampoVariavel(descritor, valorCampo);
+                        escreveCampoVariavel(descritor, tempTempo);
+                    }
+                    if (!strcmp(nomeCampo, "tempoViagem")){
+                        fseek(descritor, RRN * TAM_REG_PAD + TAM_REG_CAB + 8, SEEK_SET);
+                        escreveCampoVariavel(descritor, tempCidadeOrigem);
+                        escreveCampoVariavel(descritor, tempCidadeDest);
+                        escreveCampoVariavel(descritor, valorCampo);
+                    }
+
+                    free(tempCidadeOrigem);
+                    free(tempCidadeDest);
+                    free(tempTempo);
+
                 }
                 fclose(descritor);
+                registros = lerTodosOsRegistros(nomeDados);
+                verticesOrdenados = geraArquivoAuxiliar(registros);
+                cabecalho = geraCabecalho(verticesOrdenados, registros[0].numReg);
+                descritor = fopen(nomeDados, "rb+");
+                fseek(descritor, 1, SEEK_SET);
+                fwrite(&(cabecalho->numeroVertices), 4, 1, descritor);
+                fclose(descritor);
 
-           }
+                
 
-            break;
+                //função do matheus:
+                binarioNaTela1(nomeDados);
+                break;
+            }
 
-        case 8: //funcionalidade 8
-            //obtém os parâmetros:
-            scanf("%s", nomeDados);
-            scanf("%s", nomeOut);
-            registros = lerTodosOsRegistros(nomeDados);
-            REGISTRO_PADRAO* aux = (REGISTRO_PADRAO*) calloc(NUM_REG_MAX, sizeof (REGISTRO_PADRAO));
-            for(int i = 0, j = 0; i < NUM_REG_MAX; i++){
-                if(registros[i].estadoOrigem[0]!= '*'){
-                    aux[j++] = registros[i];
+
+        case 8: // Funcionalidade 8: Compacta o arquivo binário.
+            {
+                //obtém os parâmetros:
+                scanf("%s", nomeDados);
+                scanf("%s", nomeOut);
+
+                cabecalho = malloc(sizeof(REGISTRO_CABECALHO));
+                if (cabecalho == NULL){
+                    printf("Falha no carregamento do arquivo.");
+                    return 0;
                 }
-            }
-            cabecalho = malloc(sizeof(REGISTRO_CABECALHO));
-            descritor = fopen(nomeDados, "rb+");
-            if (descritor == NULL){
-                printf("Falha no carregamento do arquivo");
-                return 1;
-            }
-            lerCabecalho(cabecalho, descritor);
-            char cur_date[11];
-            sprintf(cur_date, "%02d/%d/%d",tm.tm_mday, tm.tm_mon, tm.tm_year+1900);
-            strcpy(cabecalho->dataUltimaCompactacao, cur_date);
-            //escreve o cabecalho no arquivo de dados:
-            strcpy(modoAbertura, "wb");
-            flag = escreveCabecalho(cabecalho, nomeOut, modoAbertura);
-            if (flag == -1) {
-                free(registros);
+                
+
+                descritor = fopen(nomeDados, "rb");
+                if (descritor == NULL){
+                    printf("Falha no carregamento do arquivo.");
+                    return 0;
+                }
+                
+                lerCabecalho(cabecalho, descritor);
+                if (cabecalho->status != '1') { //inconsistente
+                    printf("Falha no carregamento do arquivo.");
+                    return 0;
+                }
+
+                // Substitui a data da ultima compactação pela data de hoje.
+                char cur_date[11];
+                /* sprintf(cur_date, "%02d/%d/%d",tm.tm_mday, tm.tm_mon+1, tm.tm_year+1900); */
+                sprintf(cur_date, "01/11/2019");
+                strcpy(cabecalho->dataUltimaCompactacao, cur_date);
+
+                //escreve o cabecalho no arquivo de dados:
+                flag = escreveCabecalho(cabecalho, nomeOut, "wb");
+                if (flag == -1) {
+                    free(aux);
+                    return 0;
+                }
                 free(cabecalho);
-                return 0;
+
+                FILE* output = fopen(nomeOut, "ab");
+                if (output == NULL){
+                    printf("Falha no carregamento do arquivo.");
+                    return 0;
+                }
+                fseek(descritor, TAM_REG_CAB, SEEK_SET); //muda o posição corrente para além do cabeçalho
+                while ((aux = lerRegistro(descritor)) != NULL){
+                    if (aux ->estadoOrigem[0] != '*'){
+                        escreveRegistroPadrao(*aux, output);
+                    }
+                    free(aux);
+                }
+
+                fclose(descritor);
+                fclose(output);
+
+                //função do matheus:
+                binarioNaTela1(nomeOut);
+
+                break;
             }
-
-            //escreve o restante do arquivo:
-            flag = escreveRegistrosPadrao(aux, nomeOut);
-            if (flag == -1) {
-                free(registros);
-                free(cabecalho);
-                return 0;
-            }
-
-            //função do matheus:
-            binarioNaTela1(nomeDados);
-
-            free(registros);
-            free(cabecalho);
-            break;
     }
 
     return 0;
