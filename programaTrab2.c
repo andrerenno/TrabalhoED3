@@ -38,7 +38,7 @@ typedef struct vertice {
      * representada pelo vértice. 
      */
     char tempoViagem[100];
-    
+
     int numVertices;  //número de vértices do grafo (só é preenchido no primeiro elemento da parte vetor da lista de adjacência)
 
     struct vertice* conectado; //aponta para um vértice conectado na lista de adjacências (pode ser adjacente ou não)
@@ -175,7 +175,7 @@ char* lerCampoVariavel(FILE* descritor) {
 REGISTRO_PADRAO* lerRegistro(FILE* descritor) {
     REGISTRO_PADRAO* registroLido;
     char* campoLido;
-    
+
     //aloca espaço para o registroLido:
     registroLido = (REGISTRO_PADRAO*) calloc(1, sizeof (REGISTRO_PADRAO));
     if (registroLido == NULL) {
@@ -242,7 +242,7 @@ REGISTRO_PADRAO* lerTodosOsRegistros(char* nomeDados) {
     }
 
     fseek(descritor, TAM_REG_CAB, SEEK_SET); //muda o posição corrente para além do cabeçalho
-    
+
     //lê um registro:
     aux = lerRegistro(descritor);
     for (i = 0; (i < NUM_REG_MAX) && (aux != NULL); i++) {
@@ -254,10 +254,10 @@ REGISTRO_PADRAO* lerTodosOsRegistros(char* nomeDados) {
         strcpy(registros[i].tempoViagem, aux->tempoViagem);
         registros[i].distancia = aux->distancia;
         free(aux);
-        
+
         //avança cursor:
         fseek(descritor, TAM_REG_CAB + TAM_REG_PAD * (i + 1), SEEK_SET);
-        
+
         //lê o próximo registro:
         aux = lerRegistro(descritor);
     }
@@ -266,7 +266,7 @@ REGISTRO_PADRAO* lerTodosOsRegistros(char* nomeDados) {
     }
     //fecha o arquivo:
     fclose(descritor);
-    
+
     return registros;
 }
 
@@ -282,7 +282,7 @@ int insereOrdenadoVetor(VERTICE* verticesOrdenados, int n, char* chave, char* es
     if (n >= NUM_VER_MAX) {
         return n;
     }
-    
+
     //acha a posição correta para inserir:
     int i;
     for (i = n - 1; (i >= 0 && (strcmp(verticesOrdenados[i].nomeCidade, chave) > 0)); i--) {
@@ -290,7 +290,7 @@ int insereOrdenadoVetor(VERTICE* verticesOrdenados, int n, char* chave, char* es
         strcpy(verticesOrdenados[i + 1].estado, verticesOrdenados[i].estado);
         verticesOrdenados[i + 1].conectado = verticesOrdenados[i].conectado;
     }
-    
+
     //insere:
     strcpy(verticesOrdenados[i + 1].nomeCidade, chave);
     strcpy(verticesOrdenados[i + 1].estado, estado);
@@ -320,7 +320,7 @@ int buscaBinaria(VERTICE* verticesOrdenados, char *chave, int tam) {
             bottom = meio + 1;
         }
     }
-    
+
     return -1;  //vértice não encontrado
 }
 
@@ -385,14 +385,14 @@ int administraInsercaoListaAdjacencia(REGISTRO_PADRAO registro, VERTICE* vertice
     int distancia;  //distância entre outraCidade e cidade
     char estado[3];  //estado de cidade
     char outroEstado[3];  //estado de outraCidade
-    
+
     //limpa todas as strings:
     limparString(cidade, 100);
     limparString(outraCidade, 100);
     limparString(tempo, 100);
     limparString(estado, 3);
     limparString(outroEstado, 3);
-    
+
     //inicializa variáveis com base em um registro ddo vetor de registros:
     strcpy(cidade, registro.cidadeOrigem);
     strcpy(outraCidade, registro.cidadeDestino);
@@ -417,13 +417,13 @@ int administraInsercaoListaAdjacencia(REGISTRO_PADRAO registro, VERTICE* vertice
             //o número de vértices cresce, nesse caso:
             numVertices++;
         }
-        
+
         //limpa todas as strings:
         limparString(cidade, 100);
         limparString(outraCidade, 100);
         limparString(estado, 3);
         limparString(outroEstado, 3);
-        
+
         //repete o processo, mas com a 'outraCidade', pois queremos contabilizá-la como possível vértice também:
         strcpy(cidade, registro.cidadeDestino);
         strcpy(outraCidade, registro.cidadeOrigem);
@@ -463,7 +463,7 @@ VERTICE* geraListaAdjacencia(REGISTRO_PADRAO* registros) {
         //incrementa para preservar o loop:
         j++;
     }
-    
+
     //guarda o número de vértices do grafo apenas no primeiro elemento da parte de vetores
     listaAdjacencia[0].numVertices = numVertices;
 
@@ -786,14 +786,21 @@ void menorCaminhoDijkstra(VERTICE* listaAdjacencia, int indiceOrigem) {
     return;
 }
 
-int isInU(VERTICE* v, int* U, VERTICE* listaAdjacencia){
+/**
+ *  Encontra o índice de um registro na lista de adjacencias.
+ *  Retorna -1 se o registro não for encontrado na lista de adjacencias
+ * **/
+int getIndex(VERTICE* v, VERTICE* listaAdjacencia){
     for (int i = 0; i < listaAdjacencia[0].numVertices; i++){
-        if (!strcmp(listaAdjacencia[i].nomeCidade, v -> nomeCidade ) && U[i])
-            return 1;
+        if (!strcmp(listaAdjacencia[i].nomeCidade, v -> nomeCidade ))
+            return i;
     }
     return 0;
-    
 }
+/**
+ *  Retorna 1 se o vetor estiver cheio de 1, o que quer dizer que já chegou a todos os vertices (U == V)
+ *  Retorna 0 se ainda tiver algum vertice não encontrado
+ * **/
 int isFull(int* U, int numVertices){
     for(int i = 0; i < numVertices; i++){
         if (U[i] == 0)
@@ -801,66 +808,85 @@ int isFull(int* U, int numVertices){
     }
     return 1;
 }
-int genProx(VERTICE* prox, int* mc, int* U, VERTICE* listaAdjacencia){
+/** Gera o vetor prox e o vetor mc a partir de U e da lista de Adjacencias
+ * prox[i] fornece o vértice em V-U atualmente mais próximo ao vertice i em U
+ * mc[i] fornece o custo da aresta (i, prox[i])
+ * **/
+void genProx(VERTICE** prox, int** mc, int* U, VERTICE* listaAdjacencia) {
     int numVertices = listaAdjacencia[0].numVertices;
-    prox = malloc(sizeof(VERTICE)* numVertices);
-    mc = malloc(sizeof(int)* numVertices);
+    *prox = malloc(sizeof(VERTICE)* numVertices);
+    *mc = malloc(sizeof(int)* numVertices);
 
     for(int i = 0; i< numVertices; i++){
-        mc[i] = INFINITO;
+        (*mc)[i] = INFINITO;
     }
     for(int i = 0; i < numVertices; i++){
         if (U[i]){
             for (VERTICE* v = listaAdjacencia[i].conectado; v != NULL; v = v->conectado){
-                if(!isInU(v, U, listaAdjacencia)){
-                    if(v->pesoAresta < mc[i]){
-                        prox[i] = *v;
-                        mc[i] = v -> pesoAresta;
+                if(!U[getIndex(v, listaAdjacencia)]){
+                    if(v->pesoAresta < (*mc)[i]){
+                        (*prox)[i] = *v;
+                        (*mc)[i] = v -> pesoAresta;
                     }
                 }
             }
-            
+
         }
     }
-    return 1;
-
-
 }
+/** Algoritimo de Prim. Acha uma Arvore Geradora Mínima (Minimum Spanning Tree) de um grafo
+ * representado por uma lista de adjacência a partir de um vértice de origem. Gera a
+ * lista de adjacência MSTListaAdj, que guarda a MST e a imprime no final da função.
+ * Nos comentários desta função, U e V serão usados para representar, respectivamente,
+ * o conjunto dos vértices que já foram incluidos na árvore em um determinado ponto no algoritmo
+ * e o conjunto de todos os vertices.
+ * **/
 void primsMST(VERTICE* listaAdjacencia, int indiceOrigem) {
 
     int numVertices = listaAdjacencia[0].numVertices;
-    VERTICE* prox;
-    int* mc;
+
+    VERTICE* prox; //prox[i] fornece o vértice em V-U atualmente mais próximo ao vertice i em U
+    int* mc; //mc[i] fornece o custo da aresta (i, prox[i])
 
     VERTICE* MSTListaAdj; //lista de adjacência gerada
-    int j = 0;
     //aloca uma lista de adjacências com o tamanho máximo de vértices:
     MSTListaAdj= (VERTICE*) calloc(NUM_VER_MAX, sizeof (VERTICE));
     if (MSTListaAdj== NULL) { //erro na alocação de memória
         printf("Falha na execução da funcionalidade.\n");
         return;
     }
-    int U[numVertices]; 
+    // Cria o vetor U, que vai guardar um valor booleano para cada vértice, representando se
+    // o vértice ja foi incluído na arvore (1) ou não (0)
+    int U[numVertices];
+
+    // Começa sem nenhum vértice em U
     for (int i = 0; i < numVertices; i++){
         U[i] = 0;
     }
+    // Adiciona todos os vértices na arvore, sem nenhuma aresta.
     for(int i = 0; i < numVertices; i++){
         strcpy(MSTListaAdj[i].nomeCidade, listaAdjacencia[i].nomeCidade);
         strcpy(MSTListaAdj[i].estado, listaAdjacencia[i].estado);
         MSTListaAdj[i].conectado = NULL;
     }
 
+    // Adiciona o primeiro vertice a U
     U[indiceOrigem] = 1;
 
     VERTICE* v = NULL;
     int min = 0;
     int dist = INFINITO;
-    
 
-    while(!isFull(U, numVertices)){
+
+    while(!isFull(U, numVertices)){ // Enquanto U != V
+        //
         v = NULL;
         dist = INFINITO;
-        genProx(prox, mc, U, listaAdjacencia);
+
+        //Gera prox e mc
+        genProx(&prox, &mc, U, listaAdjacencia);
+
+        // Encontra a aresta de menor peso que conecta U a V-U percorrendo o vetor mc
         for (int i = 0; i < numVertices; i++){
             if(mc[i] < dist){
                 v = &prox[i];
@@ -868,12 +894,16 @@ void primsMST(VERTICE* listaAdjacencia, int indiceOrigem) {
                 dist = mc[i];
             }
         }
+        // Insere a aresta na arvore
         insereOrdenadoLista(&(MSTListaAdj[min]), v -> nomeCidade, v->tempoViagem, dist, v->estado);
+        // Insere o vertice em U
+        U[getIndex(v, listaAdjacencia)] = 1;
+
         free(prox);
         free(mc);
     }
 
-    imprimeListaAdjacencia(MSTListaAdj); //imprime a lista
+    imprimeListaAdjacencia(MSTListaAdj); //imprime a arvore
 
 }
 
@@ -933,7 +963,7 @@ int main() {
 
             indiceOrigem = buscaBinaria(listaAdjacencia, entrada3, listaAdjacencia[0].numVertices); //busca (na parte vetor da lista de adjacência) a cidade que será o vértice de origem
             if(indiceOrigem == -1){  //se não encontrou a cidade
-				printf("Cidade inexistente.\n");
+                printf("Cidade inexistente.\n");
                 return 0;
             }
             menorCaminhoDijkstra(listaAdjacencia, indiceOrigem); //calcula os menores caminhos e os imprime
@@ -960,7 +990,7 @@ int main() {
 
             indiceOrigem = buscaBinaria(listaAdjacencia, entrada3, listaAdjacencia[0].numVertices); //busca (na parte vetor da lista de adjacência) a cidade que será o vértice de origem
             if(indiceOrigem == -1){  //se não encontrou a cidade
-				printf("Cidade inexistente.\n");
+                printf("Cidade inexistente.\n");
                 return 0;
             }
             primsMST(listaAdjacencia, indiceOrigem); //Acha uma arvore geradora minima e imprime
