@@ -814,15 +814,21 @@ int isFull(int* U, int numVertices){
  * **/
 void genProx(VERTICE** prox, int** mc, int* U, VERTICE* listaAdjacencia) {
     int numVertices = listaAdjacencia[0].numVertices;
+    // Cria os vetores
     *prox = malloc(sizeof(VERTICE)* numVertices);
     *mc = malloc(sizeof(int)* numVertices);
 
+    // Se um vertice não estiver conectado com U (ou estiver em U) a dist vai ser infinita
     for(int i = 0; i< numVertices; i++){
         (*mc)[i] = INFINITO;
     }
+
+    // Olha em todos os vertices em U
     for(int i = 0; i < numVertices; i++){
         if (U[i]){
+            // Percorre a lista encadeada e acha o a menor dist
             for (VERTICE* v = listaAdjacencia[i].conectado; v != NULL; v = v->conectado){
+                // Somente para vertices que não estão em U
                 if(!U[getIndex(v, listaAdjacencia)]){
                     if(v->pesoAresta < (*mc)[i]){
                         (*prox)[i] = *v;
@@ -873,14 +879,15 @@ void primsMST(VERTICE* listaAdjacencia, int indiceOrigem) {
     // Adiciona o primeiro vertice a U
     U[indiceOrigem] = 1;
 
-    VERTICE* v = NULL;
-    int min = 0;
-    int dist = INFINITO;
+    VERTICE* v;
+    int min;
+    int dist;
 
 
     while(!isFull(U, numVertices)){ // Enquanto U != V
         //
         v = NULL;
+        min = 0;
         dist = INFINITO;
 
         //Gera prox e mc
@@ -894,6 +901,8 @@ void primsMST(VERTICE* listaAdjacencia, int indiceOrigem) {
                 dist = mc[i];
             }
         }
+        if(v == NULL)
+            return;
         // Insere a aresta na arvore
         insereOrdenadoLista(&(MSTListaAdj[min]), v -> nomeCidade, v->tempoViagem, dist, v->estado);
         // Insere o vertice em U
